@@ -1,55 +1,75 @@
 import { fromUrl, fromArrayBuffer, fromBlob } from "geotiff";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
+import pngjs from "pngjs";
 
-const lerp = (a, b, t) => (1 - t) * a + t * b;
+const PNG = pngjs.PNG;
 
-function transform(a, b, M, roundToInt = false) {
-  const round = (v) => (roundToInt ? v | 0 : v);
-  return [
-    round(M[0] + M[1] * a + M[2] * b),
-    round(M[3] + M[4] * a + M[5] * b),
-  ];
+const BLACK = 0;
+const WHITE = 255;
+
+function parseArgs() {
+  if (process.argv.length < 4) {
+    console.log('Usage: node index.js INPUT_PATH OUTPUT_PATH');
+    process.exit(1);
+  }
+  const [inputPath, outputPath] = process.argv.slice(2);
+  return {inputPath, outputPath};
 }
 
 async function main() {
-  // Load our data tile from url, arraybuffer, or blob, so we can work with it:
-  const arrayBuffer = readFileSync("./sample-input.tif").buffer;
+  const {inputPath, outputPath} = parseArgs();
+
+  // Read input file
+  const arrayBuffer = readFileSync(inputPath).buffer;
   const tiff = await fromArrayBuffer(arrayBuffer);
   const image = await tiff.getImage(); // by default, the first image is read.
-
-  // Construct the WGS-84 forward and inverse affine matrices:
-  const { ModelPixelScale: s, ModelTiepoint: t } = image.fileDirectory;
-  let [sx, sy, sz] = s;
-  let [px, py, k, gx, gy, gz] = t;
-  sy = -sy; // WGS-84 tiles have a "flipped" y component
-
-  const pixelToGPS = [gx, sx, 0, gy, 0, sy];
-  console.log(`pixel to GPS transform matrix:`, pixelToGPS);
-
-  const gpsToPixel = [-gx / sx, 1 / sx, 0, -gy / sy, 0, 1 / sy];
-  console.log(`GPS to pixel transform matrix:`, gpsToPixel);
-
-  // Convert a GPS coordinate to a pixel coordinate in our tile:
-  const [gx1, gy1, gx2, gy2] = image.getBoundingBox();
-  // const lat = lerp(gy1, gy2, Math.random());
-  // const long = lerp(gx1, gx2, Math.random());
-  const lat = 37.995323;
-  const long = -122.627476;
-  console.log(`Looking up GPS coordinate (${lat.toFixed(6)},${long.toFixed(6)})`);
-
-  const [x, y] = transform(long, lat, gpsToPixel, true);
-  console.log(`Corresponding tile pixel coordinate: [${x}][${y}]`);
-
-  // And as each pixel in the tile covers a geographic area, not a single
-  // GPS coordinate, get the area that this pixel covers:
-  const gpsBBox = [transform(x, y, pixelToGPS), transform(x + 1, y + 1, pixelToGPS)];
-  console.log(`Pixel covers the following GPS area:`, gpsBBox);
-
-  // Finally, retrieve the elevation associated with this pixel's geographic area:
   const rasters = await image.readRasters();
-  const { width, [0]: raster } = rasters;
-  const elevation = raster[x + y * width];
-  console.log(`The elevation at (${lat.toFixed(6)},${long.toFixed(6)}) is ${elevation}m`);
+  const { width, height, [0]: raster } = rasters;
+
+  // Make color scale
+  const f = makeLinearEquationFromPoints(
+    [900, BLACK],
+    [1, WHITE],
+  );
+  const elevationToBrightness = elevation =>
+    elevation <= 0 // todo Check: Can it be exactly zero? (I think so: I think it's ints)
+    ? 50
+    : clamp(f(elevation), 0, 255);
+
+  // Create and write image
+  const outputImage = new PNG({ width, height });
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (width * y + x) << 2;
+      const elevation = raster[x + y * width];
+      const brightness = elevationToBrightness(elevation);
+      outputImage.data[idx] = brightness;
+      outputImage.data[idx + 1] = brightness;
+      outputImage.data[idx + 2] = brightness;
+      outputImage.data[idx + 3] = 255;
+    }
+  }
+  const outputBuffer = PNG.sync.write(outputImage);
+  writeFileSync(outputPath, outputBuffer);
+  console.log('Output image:',  outputPath);
+}
+
+function clamp(x, lo, hi) {
+  if (x <= lo) {
+    return lo;
+  } else if (x >= hi) {
+    return hi;
+  } else {
+    return x;
+  }
+}
+
+function makeLinearEquationFromPoints(p1, p2) {
+  const [x1, y1] = p1;
+  const [x2, y2] = p2;
+  const m = (y2 - y1) / (x2 - x1); // slope
+  const b = y1 - m * x1; // y-intercept
+  return x => m * x + b;
 }
 
 main();
