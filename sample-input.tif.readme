@@ -1,14 +1,15 @@
 Dataset: SRTM Non-Void Filled
 Fetched on: 2024-01-16
 Southwest corner: N 37deg, W 123deg
-Contains:
+Dimensions: 1deg lat x 1deg long
+Resolution: 1 arcsecond
+Contents:
     Much of the San Francisco Bay Area, including San Francisco, Berkeley,
     Oakland, and much of the San Francisco Peninsula
 
 
-This file is from the SRTM dataset (public domain elevation data from a NASA
-mission covering most of the world at fairly high resolution -- 1 arc-second,
-or around 25 meters).
+This file is from the SRTM dataset, which is public domain elevation data from
+a 2000 NASA mission covering most of the world at fairly high resolution.
 
 The data set is divided into 1deg x 1deg tiles, identified by their southwest
 corner.
@@ -23,4 +24,5 @@ The dataset is distributed by USGS via the "EarthExplorer" tool at:
     (A free account is required)
 
 More about this dataset:
+    https://www.usgs.gov/centers/eros/science/usgs-eros-archive-digital-elevation-shuttle-radar-topography-mission-srtm
     https://wiki.openstreetmap.org/wiki/SRTM
