@@ -35,7 +35,7 @@ async function main() {
     [900, BLACK],
     [1, WHITE],
   );
-  const elevationToBrightness = elevation =>
+  const elevationToLightness = elevation =>
     elevation <= 0 // todo Check: Can it be exactly zero? (I think so: I think it's ints)
     ? 0.2
     : clamp(f(elevation), 0, 1);
@@ -71,7 +71,7 @@ async function main() {
     for (let x = 1; x < width - 1; x++) {
       const idx = toIndex(x, y);
       const elevation = toElevation(x, y);
-      const l = elevationToBrightness(elevation);
+      const l = elevationToLightness(elevation);
       const [h, s] = getPartialColor(x, y);
       const [r, g, b] = hslToRgb(h, s, l);
       outputImage.data[idx] = r;
