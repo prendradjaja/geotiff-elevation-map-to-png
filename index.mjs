@@ -30,6 +30,18 @@ async function main() {
   const rasters = await image.readRasters();
   const { width, height, [0]: raster } = rasters;
 
+  const toElevation = (x, y) => raster[width * y + x];
+  const output = [];
+  for (let y = 0; y < height; y++) {
+    const row = [];
+    output.push(row);
+    for (let x = 0; x < width; x++) {
+      row.push(clamp(toElevation(x, y), 0, 1000));
+    }
+  }
+  writeFileSync(outputPath, JSON.stringify(output), 'utf8');
+  process.exit(0);
+
   // Make lightness scale
   const f = makeLinearEquationFromPoints(
     [900, BLACK],
@@ -63,7 +75,6 @@ async function main() {
   }
 
   const toIndex = (x, y) => (width * y + x) << 2;
-  const toElevation = (x, y) => raster[width * y + x];
 
   // Create and write image
   const outputImage = new PNG({ width, height });
