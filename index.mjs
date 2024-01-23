@@ -40,6 +40,14 @@ async function main() {
     ? 0.2
     : clamp(f(elevation), 0, 1);
 
+  /**
+   * Color each pixel by the direction of the slope:
+   *
+   * North-facing hillsides are red, south-facing hillsides are blue, and
+   * anything in between is a desaturated red or blue.
+   *
+   * Returns [hue, saturation]
+   */
   function getPartialColor(x, y) {
     const xSlope = [2, 0, toElevation(x + 1, y) - toElevation(x - 1, y)];
     const ySlope = [0, 2, toElevation(x, y + 1) - toElevation(x, y - 1)];
